@@ -32,6 +32,20 @@ subprojects {
             if (namespace == null) {
                 namespace = "com.finadvisor.plugins.${project.name.replace("-", "_")}"
             }
+            compileOptions {
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
+            }
+        }
+    }
+    // Same story: force a consistent Kotlin JVM target across every module
+    // (including old native plugins) so their Kotlin/Java compile tasks
+    // don't disagree with each other or with the app's own JVM 17 target.
+    pluginManager.withPlugin("org.jetbrains.kotlin.android") {
+        extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension> {
+            compilerOptions {
+                jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+            }
         }
     }
 }

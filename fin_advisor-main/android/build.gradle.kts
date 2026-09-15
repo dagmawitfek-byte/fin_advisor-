@@ -41,11 +41,14 @@ subprojects {
     // Same story: force a consistent Kotlin JVM target across every module
     // (including old native plugins) so their Kotlin/Java compile tasks
     // don't disagree with each other or with the app's own JVM 17 target.
-    pluginManager.withPlugin("org.jetbrains.kotlin.android") {
-        extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension> {
-            compilerOptions {
-                jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-            }
+    // NOTE: this targets the compile *tasks* directly via configureEach
+    // (lazy, applied at task-configuration time) rather than the Kotlin
+    // extension, because some old plugins set `kotlinOptions.jvmTarget`
+    // directly on their tasks in their own build script, which would
+    // otherwise silently override an extension-level setting.
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
     }
 }

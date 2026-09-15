@@ -33,7 +33,7 @@ dependencies:
 
   # SMS (Android only) + Permissions
   permission_handler: ^11.3.1
-  telephony_fix: ^0.2.1
+  telephony: ^0.3.1
 
   # Icons
   cupertino_icons: ^1.0.8
@@ -48,5 +48,4 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
 

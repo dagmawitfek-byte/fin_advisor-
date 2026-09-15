@@ -19,33 +19,23 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
-// Workaround: some older/unmaintained plugins (e.g. `telephony`) predate the
-// Android Gradle Plugin's namespace requirement and never declared one in
-// their own build.gradle. Inject a namespace for any library module that's
-// missing it, so the build doesn't fail on their behalf.
-// NOTE: uses pluginManager.withPlugin (not afterEvaluate) because Flutter's
-// plugin loader can evaluate native plugin projects as a side effect of
-// evaluating :app, which happens before our config would otherwise run.
+// Workaround for old/discontinued plugins that still use kotlin-android
+// This suppresses the kotlin-android plugin error in AGP 9.0+
 subprojects {
     pluginManager.withPlugin("com.android.library") {
         extensions.configure<com.android.build.gradle.LibraryExtension> {
             if (namespace == null) {
                 namespace = "com.finadvisor.plugins.${project.name.replace("-", "_")}"
             }
+            compileSdk = 35
             compileOptions {
                 sourceCompatibility = JavaVersion.VERSION_17
                 targetCompatibility = JavaVersion.VERSION_17
             }
         }
     }
-    // Same story: force a consistent Kotlin JVM target across every module
-    // (including old native plugins) so their Kotlin/Java compile tasks
-    // don't disagree with each other or with the app's own JVM 17 target.
-    // NOTE: this targets the compile *tasks* directly via configureEach
-    // (lazy, applied at task-configuration time) rather than the Kotlin
-    // extension, because some old plugins set `kotlinOptions.jvmTarget`
-    // directly on their tasks in their own build script, which would
-    // otherwise silently override an extension-level setting.
+    
+    // Force consistent Kotlin JVM target across every module
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)

@@ -1,10 +1,10 @@
+import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:telephony_fix/telephony.dart' as tel;
 import '../models/sms_message.dart';
 
 class SmsService {
   static final SmsService _instance = SmsService._internal();
-  final tel.Telephony telephony = tel.Telephony.instance;
+  static const platform = MethodChannel('com.finadvisor.fin_advisor/sms');
 
   SmsService._internal();
 
@@ -28,8 +28,16 @@ class SmsService {
         final granted = await requestSmsPermission();
         if (!granted) return [];
       }
-      final sms = await telephony.getInboxSms();
-      return sms.map(_fromTelephonyMessage).toList();
+
+      final List<dynamic> result =
+          await platform.invokeMethod('fetchAllSms');
+
+      return result.map((sms) {
+        return SmsMessage.fromMap(Map<String, dynamic>.from(sms));
+      }).toList();
+    } on PlatformException catch (e) {
+      print('Error fetching SMS: ${e.message}');
+      return [];
     } catch (e) {
       print('Error fetching SMS: $e');
       return [];
@@ -37,8 +45,25 @@ class SmsService {
   }
 
   Future<List<SmsMessage>> fetchBankSms() async {
-    final allSms = await fetchAllSms();
-    return allSms.where((sms) => sms.isFromBank()).toList();
+    try {
+      if (!await hasSmsPermission()) {
+        final granted = await requestSmsPermission();
+        if (!granted) return [];
+      }
+
+      final List<dynamic> result =
+          await platform.invokeMethod('fetchBankSms');
+
+      return result.map((sms) {
+        return SmsMessage.fromMap(Map<String, dynamic>.from(sms));
+      }).toList();
+    } on PlatformException catch (e) {
+      print('Error fetching bank SMS: ${e.message}');
+      return [];
+    } catch (e) {
+      print('Error fetching bank SMS: $e');
+      return [];
+    }
   }
 
   Future<double?> getLatestBalance() async {
@@ -60,25 +85,10 @@ class SmsService {
     return null;
   }
 
-  /// Converts the telephony package's own SmsMessage into our app's model.
-  SmsMessage _fromTelephonyMessage(tel.SmsMessage message) {
-    return SmsMessage.fromMap({
-      '_id': message.id?.toString() ?? '',
-      'address': message.address ?? '',
-      'body': message.body ?? '',
-      'date': message.date ?? DateTime.now().millisecondsSinceEpoch,
-      'type': 1,
-    });
-  }
-
-  /// Listens for new incoming SMS in real time and invokes [callback] with
-  /// our own [SmsMessage] model whenever a new message arrives.
+  /// Listens for incoming SMS - Note: Real-time listening requires additional
+  /// background service setup. For now, use periodic polling with fetchAllSms()
   void onSmsReceived(void Function(SmsMessage message) callback) {
-    telephony.listenIncomingSms(
-      onNewMessage: (tel.SmsMessage message) {
-        callback(_fromTelephonyMessage(message));
-      },
-      listenInBackground: false,
-    );
+    print('Real-time SMS listening requires additional background service setup.');
+    print('Use fetchAllSms() or fetchBankSms() for polling-based SMS reading.');
   }
 }

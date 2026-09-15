@@ -24,7 +24,11 @@ jobs:
         with:
           flutter-version: '3.47.4'
           channel: 'stable'
-          cache: true
+          cache: false
+
+      - name: Remove old lock file
+        working-directory: fin_advisor-main
+        run: rm -f pubspec.lock
 
       - name: Clear pub cache
         working-directory: fin_advisor-main

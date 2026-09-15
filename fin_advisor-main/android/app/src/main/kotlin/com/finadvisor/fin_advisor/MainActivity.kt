@@ -1,5 +1,94 @@
 package com.finadvisor.fin_advisor
 
+import android.content.ContentResolver
+import android.database.Cursor
+import android.net.Uri
+import android.provider.Telephony
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
 
-class MainActivity : FlutterActivity()
+class MainActivity: FlutterActivity() {
+    private val CHANNEL = "com.finadvisor.fin_advisor/sms"
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "fetchAllSms" -> {
+                        try {
+                            val smsMessages = fetchAllSms()
+                            result.success(smsMessages)
+                        } catch (e: Exception) {
+                            result.error("SMS_ERROR", e.message, null)
+                        }
+                    }
+                    "fetchBankSms" -> {
+                        try {
+                            val bankSms = fetchBankSms()
+                            result.success(bankSms)
+                        } catch (e: Exception) {
+                            result.error("SMS_ERROR", e.message, null)
+                        }
+                    }
+                    else -> {
+                        result.notImplemented()
+                    }
+                }
+            }
+    }
+
+    private fun fetchAllSms(): List<Map<String, Any?>> {
+        val smsList = mutableListOf<Map<String, Any?>>()
+        val resolver: ContentResolver = contentResolver
+        val uri: Uri = Telephony.Sms.CONTENT_URI
+
+        val cursor: Cursor? = resolver.query(
+            uri,
+            arrayOf("_id", "address", "body", "date", "type"),
+            null,
+            null,
+            "date DESC"
+        )
+
+        cursor?.use {
+            while (it.moveToNext()) {
+                val id = it.getString(0)
+                val address = it.getString(1)
+                val body = it.getString(2)
+                val date = it.getLong(3)
+                val type = it.getInt(4)
+
+                smsList.add(
+                    mapOf(
+                        "_id" to id,
+                        "address" to address,
+                        "body" to body,
+                        "date" to date,
+                        "type" to type
+                    )
+                )
+            }
+        }
+
+        return smsList
+    }
+
+    private fun fetchBankSms(): List<Map<String, Any?>> {
+        val allSms = fetchAllSms()
+        return allSms.filter { sms ->
+            val body = sms["body"] as? String ?: ""
+            isFromBank(body)
+        }
+    }
+
+    private fun isFromBank(smsBody: String): Boolean {
+        val bankKeywords = listOf(
+            "balance", "account", "transaction", "debit", "credit",
+            "payment", "transfer", "withdrawal", "deposit", "bank"
+        )
+        return bankKeywords.any { smsBody.contains(it, ignoreCase = true) }
+    }
+}

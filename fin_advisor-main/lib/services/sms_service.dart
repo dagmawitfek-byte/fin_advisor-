@@ -1,5 +1,5 @@
 import 'package:permission_handler/permission_handler.dart';
-import 'package:telephony/telephony.dart' as tel;
+import 'package:telephony_fix/telephony.dart' as tel;
 import '../models/sms_message.dart';
 
 class SmsService {

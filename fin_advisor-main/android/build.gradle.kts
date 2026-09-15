@@ -19,6 +19,15 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// Suppress kotlin-android plugin for AGP 9.0+ compatibility
+// This is needed for discontinued packages like telephony 0.2.0
+allprojects {
+    pluginManager.withPlugin("org.jetbrains.kotlin.android") {
+        // Plugin is already applied by built-in Kotlin in AGP 9.0+
+        // No additional configuration needed
+    }
+}
+
 // Workaround for old/discontinued plugins that still use kotlin-android
 // This suppresses the kotlin-android plugin error in AGP 9.0+
 subprojects {

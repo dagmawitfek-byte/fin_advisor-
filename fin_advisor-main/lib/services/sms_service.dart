@@ -29,7 +29,7 @@ class SmsService {
         if (!granted) return [];
       }
       final sms = await telephony.getInboxSms();
-      return sms.map((m) => SmsMessage.fromMap(m.toMap())).toList();
+      return sms.map(_fromTelephonyMessage).toList();
     } catch (e) {
       print('Error fetching SMS: $e');
       return [];
@@ -60,18 +60,23 @@ class SmsService {
     return null;
   }
 
+  /// Converts the telephony package's own SmsMessage into our app's model.
+  SmsMessage _fromTelephonyMessage(tel.SmsMessage message) {
+    return SmsMessage.fromMap({
+      '_id': message.id?.toString() ?? '',
+      'address': message.address ?? '',
+      'body': message.body ?? '',
+      'date': message.date ?? DateTime.now().millisecondsSinceEpoch,
+      'type': 1,
+    });
+  }
+
   /// Listens for new incoming SMS in real time and invokes [callback] with
   /// our own [SmsMessage] model whenever a new message arrives.
   void onSmsReceived(void Function(SmsMessage message) callback) {
     telephony.listenIncomingSms(
       onNewMessage: (tel.SmsMessage message) {
-        callback(SmsMessage.fromMap({
-          '_id': message.id?.toString() ?? '',
-          'address': message.address ?? '',
-          'body': message.body ?? '',
-          'date': message.date ?? DateTime.now().millisecondsSinceEpoch,
-          'type': 1,
-        }));
+        callback(_fromTelephonyMessage(message));
       },
       listenInBackground: false,
     );

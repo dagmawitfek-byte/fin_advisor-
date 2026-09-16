@@ -24,11 +24,9 @@ class _FinAdvisorAppState extends State<FinAdvisorApp> {
   void initState() {
     super.initState();
     // Initialize SMS listener after app is fully loaded
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
       await SmsListener().initialize(context);
-      if (mounted) SmsListener().startListeningForNewSms(context);
     });
-  }
 
   @override
   Widget build(BuildContext context) {

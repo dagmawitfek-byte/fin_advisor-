@@ -26,32 +26,134 @@ class SmsMessage {
     );
   }
 
+  // List of supported Ethiopian banks
+  static const List<String> supportedBanks = [
+    'CBE',
+    'TELEBIRR',
+    'BOA',
+    'BUNNA',
+    'AWASH',
+    'DASHEN',
+    'ADDIS',
+    'NIB',
+    'UNITED',
+    'OROMIA',
+    'HIJRA',
+    'LION',
+    'AMHARA',
+    'ABYSSINIA'
+  ];
+
+  /// Check if SMS is from a supported Ethiopian bank
   bool isFromBank() {
-    final bankKeywords = ['bank', 'telebirr', 'awash', 'dashen', 'abysinia', 'oromia', 'nib', 'cbe', 'balance', 'transaction', 'debit', 'credit'];
-    return bankKeywords.any((keyword) => address.toLowerCase().contains(keyword) || body.toLowerCase().contains(keyword));
+    final addressUpper = address.toUpperCase();
+    final bodyUpper = body.toUpperCase();
+
+    // Check if sender name or body contains bank names
+    return supportedBanks.any((bank) =>
+        addressUpper.contains(bank) ||
+        bodyUpper.contains(bank));
   }
 
-  double? extractBalance() {
-    final balancePattern = RegExp(r'(?:balance|bal)[:\s]*([0-9,]+(?:\.[0-9]{2})?)');
-    final match = balancePattern.firstMatch(body.toLowerCase());
-    if (match != null) {
-      final balanceStr = match.group(1)?.replaceAll(',', '') ?? '';
-      return double.tryParse(balanceStr);
+  /// Get bank name from SMS sender or body
+  String? getBankName() {
+    final addressUpper = address.toUpperCase();
+    final bodyUpper = body.toUpperCase();
+
+    for (var bank in supportedBanks) {
+      if (addressUpper.contains(bank) || bodyUpper.contains(bank)) {
+        return bank;
+      }
     }
     return null;
   }
 
-  bool isDebitTransaction() {
-    return body.toLowerCase().contains('debit') || body.toLowerCase().contains('withdrawal') || body.toLowerCase().contains('payment');
+  /// Categorize transaction as Debit or Credit
+  TransactionType getTransactionType() {
+    final bodyLower = body.toLowerCase();
+
+    // Debit patterns
+    if (bodyLower.contains('debited') ||
+        bodyLower.contains('debit') ||
+        bodyLower.contains('withdrawal') ||
+        bodyLower.contains('payment') ||
+        bodyLower.contains('transferred') ||
+        bodyLower.contains('sent')) {
+      return TransactionType.debit;
+    }
+
+    // Credit patterns
+    if (bodyLower.contains('credited') ||
+        bodyLower.contains('credit') ||
+        bodyLower.contains('received') ||
+        bodyLower.contains('deposit') ||
+        bodyLower.contains('transferred in')) {
+      return TransactionType.credit;
+    }
+
+    return TransactionType.unknown;
   }
 
+  /// Extract transaction amount from SMS
   double? extractAmount() {
-    final amountPattern = RegExp(r'(?:amount|birr|etb)[:\s]*([0-9,]+(?:\.[0-9]{2})?)');
-    final match = amountPattern.firstMatch(body.toLowerCase());
-    if (match != null) {
-      final amountStr = match.group(1)?.replaceAll(',', '') ?? '';
-      return double.tryParse(amountStr);
+    // Try various patterns for amount extraction
+    final patterns = [
+      RegExp(r'(?:amount|birr|etb)[:\s]*([0-9,]+(?:\.[0-9]{2})?)', caseSensitive: false),
+      RegExp(r'([0-9,]+(?:\.[0-9]{2})?)\s*(?:birr|etb)', caseSensitive: false),
+      RegExp(r'debited[:\s]*([0-9,]+(?:\.[0-9]{2})?)', caseSensitive: false),
+      RegExp(r'credited[:\s]*([0-9,]+(?:\.[0-9]{2})?)', caseSensitive: false),
+    ];
+
+    for (var pattern in patterns) {
+      final match = pattern.firstMatch(body);
+      if (match != null) {
+        final amountStr = match.group(1)?.replaceAll(',', '') ?? '';
+        final amount = double.tryParse(amountStr);
+        if (amount != null && amount > 0) {
+          return amount;
+        }
+      }
     }
     return null;
   }
+
+  /// Extract remaining balance from SMS
+  double? extractBalance() {
+    final patterns = [
+      RegExp(r'(?:balance|bal)[:\s]*([0-9,]+(?:\.[0-9]{2})?)', caseSensitive: false),
+      RegExp(r'(?:available)[:\s]*([0-9,]+(?:\.[0-9]{2})?)', caseSensitive: false),
+      RegExp(r'(?:remaining)[:\s]*([0-9,]+(?:\.[0-9]{2})?)', caseSensitive: false),
+    ];
+
+    for (var pattern in patterns) {
+      final match = pattern.firstMatch(body);
+      if (match != null) {
+        final balanceStr = match.group(1)?.replaceAll(',', '') ?? '';
+        final balance = double.tryParse(balanceStr);
+        if (balance != null && balance >= 0) {
+          return balance;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Check if this is a debit transaction
+  bool isDebitTransaction() {
+    return getTransactionType() == TransactionType.debit;
+  }
+
+  /// Check if this is a credit transaction
+  bool isCreditTransaction() {
+    return getTransactionType() == TransactionType.credit;
+  }
+
+  @override
+  String toString() => 'SmsMessage(from: $address, date: $date, type: ${getTransactionType()})';
+}
+
+enum TransactionType {
+  debit,
+  credit,
+  unknown,
 }

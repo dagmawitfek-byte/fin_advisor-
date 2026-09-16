@@ -1,6 +1,7 @@
 package com.finadvisor.fin_advisor
 
 import android.content.ContentResolver
+import android.content.Context
 import android.database.Cursor
 import android.net.Uri
 import android.provider.Telephony
@@ -10,10 +11,12 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "com.finadvisor.fin_advisor/sms"
+    private val BACKGROUND_CHANNEL = "com.finadvisor.fin_advisor/background"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
+        // SMS Channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -31,6 +34,24 @@ class MainActivity: FlutterActivity() {
                             result.success(bankSms)
                         } catch (e: Exception) {
                             result.error("SMS_ERROR", e.message, null)
+                        }
+                    }
+                    else -> {
+                        result.notImplemented()
+                    }
+                }
+            }
+
+        // Background monitoring channel
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, BACKGROUND_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "setupBackgroundListener" -> {
+                        try {
+                            SmsReceiver.setupBackgroundMonitoring(this)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("BG_ERROR", e.message, null)
                         }
                     }
                     else -> {
@@ -86,44 +107,16 @@ class MainActivity: FlutterActivity() {
     }
 
     private fun isFromBank(smsBody: String, smsAddress: String): Boolean {
-        // Ethiopian bank keywords and patterns
-        val bankKeywords = listOf(
-            // Telebirr (M-Pesa equivalent in Ethiopia)
-            "telebirr", "TeleBirr", "birr",
-            
-            // Major Ethiopian Banks
-            "cbe", "commercial bank", "CBE",
-            "awash", "awash bank",
-            "dashen", "dashen bank",
-            "addis", "addis international",
-            "abyssiniabank", "abyssinia",
-            "nib", "nib international",
-            "united bank", "ub",
-            "oromia", "oromia bank",
-            "hijra", "hijra bank",
-            "lion", "lion bank",
-            "amhara", "amhara bank",
-            
-            // Transaction keywords
-            "balance", "debit", "credit", "account",
-            "transaction", "transfer", "payment",
-            "withdrawal", "deposit", "charged",
-            "available", "birr", "eth"
+        val supportedBanks = listOf(
+            "CBE", "TELEBIRR", "BOA", "BUNNA", "AWASH", "DASHEN",
+            "ADDIS", "NIB", "UNITED", "OROMIA", "HIJRA", "LION", "AMHARA", "ABYSSINIA"
         )
 
-        // Check if SMS contains bank keywords
-        val bodyLower = smsBody.lowercase()
-        val addressLower = smsAddress.lowercase()
-        
-        val containsBankKeyword = bankKeywords.any { 
-            bodyLower.contains(it) || addressLower.contains(it)
+        val bodyUpper = smsBody.uppercase()
+        val addressUpper = smsAddress.uppercase()
+
+        return supportedBanks.any { bank ->
+            bodyUpper.contains(bank) || addressUpper.contains(bank)
         }
-
-        // Check if SMS address looks like a bank shortcode
-        val isBankShortcode = addressLower.matches(Regex("^[0-9]{3,5}$")) || 
-                              addressLower.contains("bank") ||
-                              addressLower.contains("telebirr")
-
-        return containsBankKeyword || isBankShortcode
     }
 }

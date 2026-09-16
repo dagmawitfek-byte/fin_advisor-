@@ -19,6 +19,9 @@ class SmsListener {
   Future<void> initialize(BuildContext context) async {
     final smsService = SmsService();
     
+    // Initialize SMS service (sets up background listening)
+    await smsService.initialize();
+
     // Request SMS permission
     final hasPermission = await smsService.requestSmsPermission();
     if (!hasPermission) {
@@ -35,6 +38,9 @@ class SmsListener {
 
     // Check for pending debit transactions on first load
     _checkPendingDebits(context);
+
+    // Start real-time monitoring
+    smsService.startRealTimeMonitoring();
   }
 
   /// Check for pending debit messages and show dialog if found
@@ -108,15 +114,52 @@ class SmsListener {
     );
   }
 
-  /// Listen for new incoming SMS (background mode)
-  void startListeningForNewSms(BuildContext context) {
+  /// Get all bank transactions
+  Future<List<SmsMessage>> fetchBankTransactions() async {
     final smsService = SmsService();
-    
-    smsService.onSmsReceived((SmsMessage message) {
-      if (message.isDebitTransaction() && context.mounted) {
-        print('New debit SMS received: ${message.body}');
-        _showDebitDialog(context, message);
-      }
-    });
+    return await smsService.fetchBankSms();
+  }
+
+  /// Get debit transactions only
+  Future<List<SmsMessage>> fetchDebitTransactions() async {
+    final smsService = SmsService();
+    return await smsService.getDebitTransactions();
+  }
+
+  /// Get credit transactions only
+  Future<List<SmsMessage>> fetchCreditTransactions() async {
+    final smsService = SmsService();
+    return await smsService.getCreditTransactions();
+  }
+
+  /// Get latest balance
+  Future<double?> getLatestBalance() async {
+    final smsService = SmsService();
+    return await smsService.getLatestBalance();
+  }
+
+  /// Get transactions by bank
+  Future<List<SmsMessage>> getTransactionsByBank(String bankName) async {
+    final smsService = SmsService();
+    return await smsService.getTransactionsByBank(bankName);
+  }
+
+  /// Get transactions by period
+  Future<List<SmsMessage>> getTransactionsByPeriod({
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final smsService = SmsService();
+    return await smsService.getTransactionsByPeriod(
+      startDate: startDate,
+      endDate: endDate,
+    );
+  }
+
+  /// Refresh SMS data
+  Future<void> refreshSmsData() async {
+    final smsService = SmsService();
+    await smsService.fetchBankSms();
+    print('SMS data refreshed');
   }
 }

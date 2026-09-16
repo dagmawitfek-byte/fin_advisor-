@@ -80,15 +80,50 @@ class MainActivity: FlutterActivity() {
         val allSms = fetchAllSms()
         return allSms.filter { sms ->
             val body = sms["body"] as? String ?: ""
-            isFromBank(body)
+            val address = sms["address"] as? String ?: ""
+            isFromBank(body, address)
         }
     }
 
-    private fun isFromBank(smsBody: String): Boolean {
+    private fun isFromBank(smsBody: String, smsAddress: String): Boolean {
+        // Ethiopian bank keywords and patterns
         val bankKeywords = listOf(
-            "balance", "account", "transaction", "debit", "credit",
-            "payment", "transfer", "withdrawal", "deposit", "bank"
+            // Telebirr (M-Pesa equivalent in Ethiopia)
+            "telebirr", "TeleBirr", "birr",
+            
+            // Major Ethiopian Banks
+            "cbe", "commercial bank", "CBE",
+            "awash", "awash bank",
+            "dashen", "dashen bank",
+            "addis", "addis international",
+            "abyssiniabank", "abyssinia",
+            "nib", "nib international",
+            "united bank", "ub",
+            "oromia", "oromia bank",
+            "hijra", "hijra bank",
+            "lion", "lion bank",
+            "amhara", "amhara bank",
+            
+            // Transaction keywords
+            "balance", "debit", "credit", "account",
+            "transaction", "transfer", "payment",
+            "withdrawal", "deposit", "charged",
+            "available", "birr", "eth"
         )
-        return bankKeywords.any { smsBody.contains(it, ignoreCase = true) }
+
+        // Check if SMS contains bank keywords
+        val bodyLower = smsBody.lowercase()
+        val addressLower = smsAddress.lowercase()
+        
+        val containsBankKeyword = bankKeywords.any { 
+            bodyLower.contains(it) || addressLower.contains(it)
+        }
+
+        // Check if SMS address looks like a bank shortcode
+        val isBankShortcode = addressLower.matches(Regex("^[0-9]{3,5}$")) || 
+                              addressLower.contains("bank") ||
+                              addressLower.contains("telebirr")
+
+        return containsBankKeyword || isBankShortcode
     }
 }
